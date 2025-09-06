@@ -1,0 +1,27 @@
+{
+  "name": "building-an-ai-agent",
+  "version": "1.0.0",
+  "description": "An AI agent refers to a system or program that is capable of autonomously performing tasks on behalf of a user or another system `by designing it's workflow` and `utilizing available tools`. - `TLDR`- Agent is an LLM with access to tools",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hiaayush30/weather-ai-agent.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/hiaayush30/weather-ai-agent/issues"
+  },
+  "homepage": "https://github.com/hiaayush30/weather-ai-agent#readme",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "dotenv": "^17.2.2",
+    "openai": "^5.19.1",
+    "readline-sync": "^1.4.10"
+  }
+}
