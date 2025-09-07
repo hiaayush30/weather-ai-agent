@@ -19,7 +19,7 @@ function getWeatherDetails(city) {
 
 // System prompt to guide the AI's behavior
 const SYSTEM_PROMPT = `
-You are an ai assistant with START,PLAN and ACTION, Observation and Output state.
+You are an ai assistant with START,PLAN and ACTION, OBSERVATION and OUTPUT state.
 Wait for the user prompt and first PLAN using available tools.
 After Planning, take the action with appropriate tools and wait for Observation based on Action.
 Once you get the observations, Return the AI response based on START prompt and observations

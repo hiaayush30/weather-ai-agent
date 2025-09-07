@@ -3,6 +3,8 @@ An AI agent refers to a system or program that is capable of autonomously perfor
 on behalf of a user or another system `by designing it's workflow` and `utilizing available tools`.
 - `TLDR`- Agent is an LLM with access to tools
 
+![alt text](image.png)
+
 ### pros of LLM
 - can do NLP (natural language processing)
 - can accept prompts 
