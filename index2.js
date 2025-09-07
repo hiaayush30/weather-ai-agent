@@ -46,19 +46,19 @@ START
 
 // Define the JSON schema for the model's output
 // This ensures Gemini generates a response in the correct format.
-const responseSchema = {
-    type: "OBJECT",
-    properties: {
-        type: {
-            type: "STRING",
-            enum: ["plan", "action", "output"]
-        },
-        plan: { type: "STRING" },
-        function: { type: "STRING" },
-        input: { type: "STRING" },
-        output: { type: "STRING" }
-    }
-};
+// const responseSchema = {
+//     type: "OBJECT",
+//     properties: {
+//         type: {
+//             type: "STRING",
+//             enum: ["plan", "action", "output"]
+//         },
+//         plan: { type: "STRING" },
+//         function: { type: "STRING" },
+//         input: { type: "STRING" },
+//         output: { type: "STRING" }
+//     }
+// };
 
 const model = genAI.getGenerativeModel({
     model: "gemini-1.5-flash-latest",
@@ -104,11 +104,12 @@ async function main() {
                 console.log(rawResponse);
                 console.log("----------------------\n\n");
 
-                messages.push({ role: "model", parts: [{ text: rawResponse }] });
+                messages.push({ role: "model", parts: [{ text: rawResponse }] }); 
+                // abv tells the Gemini API, "The following message came from me, the AI." 
                 const call = JSON.parse(rawResponse);
 
                 if (call.type === "output") {
-                    console.log(`Final Output: ${call.output}`);
+                    console.log(`Final Response: ${call.output}`);
                     break; // Exit the inner loop and wait for new user input
                 } else if (call.type === "action") {
                     const fn = tools[call.function];
