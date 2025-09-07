@@ -1,125 +1,130 @@
+
+// using gemini
 import dotenv from "dotenv";
-import readLineSync from "readline-sync";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import readlineSync from "readline-sync"
 
 dotenv.config();
 
 // Initialize the Gemini client
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Mock tool function for getting weather details
+// Tools
 function getWeatherDetails(city) {
-    const cityLowerCase = city.toLowerCase();
-    switch (cityLowerCase) {
-        case "pune":
-            return "10°C";
-        case "bhopal":
-            return "12°C";
-        case "patiala":
-            return "10°C";
-        case "mohali":
-            return "14°C";
-        default:
-            return "15°C";
-    }
+    // make api calls here
+    if (city.toLowerCase() === "pune") return "10°C"
+    if (city.toLowerCase() === "bhopal") return "12°C"
+    return "15 ° C"
 }
 
-// Map of available functions
-const availableFunctions = {
-    getWeatherDetails,
+// System prompt to guide the AI's behavior
+const SYSTEM_PROMPT = `
+You are an ai assistant with START,PLAN and ACTION, Observation and Output state.
+Wait for the user prompt and first PLAN using available tools.
+After Planning, take the action with appropriate tools and wait for Observation based on Action.
+Once you get the observations, Return the AI response based on START prompt and observations
+
+Strictly follow the JSON output format as in exmples
+
+Available Tools:
+- function getWeatherDetails(city:string):string
+it is a function that accepts city name as string and returns weather details
+
+You only have the above functions. for any other actions do it yourself or apologize to the user.
+
+Example:
+START
+{"type":"user","user":"What is the sum of weather of Patiala and Mohali?"}
+{"type":"plan","plan":"I will call the getWeatherDetails for Patiala"}
+{"type":"action","function":"getWeatherDetails","input":"patiala"}
+{"type":"observation","observation":"10°C"}
+{"type":"plan","plan":"I will call getWeatherDetails for Mohali"}
+{"type":"action","function":"getWeatherDetails","input":"mohali"}
+{"type":"observation","observation":"14°C"}
+{"type":"output","output":"The sum of weather of Patiala and Mohali is 24°C"}
+`;
+
+// Define the JSON schema for the model's output
+// This ensures Gemini generates a response in the correct format.
+const responseSchema = {
+    type: "OBJECT",
+    properties: {
+        type: {
+            type: "STRING",
+            enum: ["plan", "action", "output"]
+        },
+        plan: { type: "STRING" },
+        function: { type: "STRING" },
+        input: { type: "STRING" },
+        output: { type: "STRING" }
+    }
 };
 
-// Define the tool for Gemini, including its parameters
-const toolDefinitions = [
-    {
-        functionDeclarations: [
-            {
-                name: "getWeatherDetails",
-                description: "Get the weather details for a specific city.",
-                parameters: {
-                    type: "object",
-                    properties: {
-                        city: {
-                            type: "string",
-                            description: "The name of the city to get the weather for."
-                        }
-                    },
-                    required: ["city"]
-                }
-            }
-        ]
-    }
-];
-
-// Initialize the model with the tool
 const model = genAI.getGenerativeModel({
     model: "gemini-1.5-flash-latest",
-    tools: toolDefinitions,
+    systemInstruction: SYSTEM_PROMPT,
+    generationConfig: {
+        responseMimeType: "application/json",
+        // responseSchema: responseSchema
+    }
 });
 
-async function chat() {
-    // Start a new chat session
-    const chatSession = model.startChat();
+const tools = {
+    "getWeatherDetails": getWeatherDetails
+};
 
-    console.log("Chat started. Type 'exit' to quit.");
+// Use an array of objects to store the chat history for Gemini
+const messages = [];
+
+async function main() {
+    console.log("Gemini AI Agent. Type 'exit' to quit.");
 
     while (true) {
-        const query = readLineSync.question(">> ");
-
+        const query = readlineSync.question(">> ");
         if (query.toLowerCase() === "exit") {
-            console.log("Goodbye!");
+            console.log("Exiting...");
             break;
         }
 
-        try {
-            // The initial message to the model must be a string.
-            let userMessage = query;
+        // Add the user's message to the conversation history
+        messages.push({
+            role: "user",
+            parts: [{ text: JSON.stringify({ type: "user", user: query }) }]
+        });
 
-            while (true) {
-                // Send the message to Gemini
-                const result = await chatSession.sendMessage(userMessage);
+        // The main agent loop
+        while (true) {
+            try {
+                // Generate content using the conversation history
+                const chatResult = await model.generateContent({
+                    contents: messages
+                });
+                const rawResponse = chatResult.response.candidates[0].content.parts[0].text;
+                console.log("\n\n--- Agent Response ---");
+                console.log(rawResponse);
+                console.log("----------------------\n\n");
 
-                // Get the response content
-                const call = result.response.functionCall();
-                const text = result.response.text();
+                messages.push({ role: "model", parts: [{ text: rawResponse }] });
+                const call = JSON.parse(rawResponse);
 
-                if (call) {
-                    // Gemini has requested a tool function call
-                    console.log(`\n**Tool Call Detected:** ${call.name}(${JSON.stringify(call.args)})`);
-                    
-                    const toolFunction = availableFunctions[call.name];
-                    if (toolFunction) {
-                        // Execute the function with the provided arguments
-                        const toolResult = toolFunction(call.args.city);
-                        console.log(`**Tool Result:** "${toolResult}"`);
-                        
-                        // Send the tool's output back to Gemini
-                        userMessage = {
-                            functionResponse: {
-                                name: call.name,
-                                response: {
-                                    result: toolResult,
-                                },
-                            },
-                        };
-                    } else {
-                        console.error(`Error: Function "${call.name}" not found.`);
-                        break;
-                    }
-                } else if (text) {
-                    // Gemini has provided a final text response
-                    console.log(`\nAI Response: ${text}\n`);
-                    break;
-                } else {
-                    console.log("AI did not return a valid response (text or tool call).");
-                    break;
+                if (call.type === "output") {
+                    console.log(`Final Output: ${call.output}`);
+                    break; // Exit the inner loop and wait for new user input
+                } else if (call.type === "action") {
+                    const fn = tools[call.function];
+                    const obs = fn(call.input);
+                    // Add the observation back to the conversation as a user part
+                    messages.push({
+                        role: "user",
+                        parts: [{ text: JSON.stringify({ type: "observation", observation: obs }) }]
+                    });
                 }
+            } catch (error) {
+                console.error("An error occurred:", error);
+                break;
             }
-        } catch (error) {
-            console.error("An error occurred:", error);
         }
     }
 }
 
-// Start the chat
-chat();
+main();

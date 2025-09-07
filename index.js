@@ -17,7 +17,7 @@ function getWeatherDetails(city) {
 
 
 const SYSTEM_PROPMT = `
-You are an ai assistant with START,PLAN and ACTION, Observation and Output state.
+You are an ai assistant with START,PLAN and ACTION, OBSERVATION and OUTPUT state.
 Wait for the user prompt and first PLAN using available tools.
 After Planning, take the action with appropriate tools and wait for Observation based on Action.
 Once you get the observations, Return the AI response based on START prompt and observations
@@ -30,7 +30,7 @@ it is a function that accepts city name as string and returns weather details
 
 Example:
 START
-{"type":"user","user":"What is the sum of weather of PAtiala and Mohali?"}
+{"type":"user","user":"What is the sum of weather of Patiala and Mohali?"}
 {"type":"plan","plan":"I will call the getWeatherDetails for Patiala"}
 {"type":"action","function":"getWeatherDetails","input":"patiala"}
 {"type":"observation","observation":"10°C"}
@@ -43,7 +43,7 @@ const userMessage = "Hey, What is the weather of Bhopal?";
 
 async function chat() {
     client.chat.completions.create({
-        model: "gpt-5-nano",
+        model: "gpt-4o",
         messages: [
             { role: "user", content: userMessage },
             { role: "system", content: SYSTEM_PROPMT }
@@ -57,6 +57,10 @@ chat();
 const messages = [
     { "role": "system", "content": SYSTEM_PROPMT }
 ]
+
+const tools = {
+    "getWeatherDetails": getWeatherDetails
+}
 
 while (true) {
     const query = readLineSync.question(">> ");
@@ -72,5 +76,23 @@ while (true) {
             messages: messages,
             response_format: { type: "json_object" }
         })
+
+        const result = chat.choices[0].message.content
+
+        console.log(`\n===============START AI=============\n`)
+        console.log(result)
+        console.log(`\n===============END AI=============\n`)
+
+        messages.push({ role: "assistant", content: result })
+
+        const call = JSON.parse(result);
+        if (call.type == "output") {
+            console.log(`${call.output}`)
+        }
+        else if (call.type == "action") {
+            const fn = tools[call.function]
+            const obs = fn(call.input)
+            messages.push({ "role": "developer", "content": JSON.stringify({ "type": "observation", "observation": obs }) })
+        }
     }
 }
